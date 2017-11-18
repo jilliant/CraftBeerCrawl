@@ -1,0 +1,86 @@
+---
+title: "A Crafty Crawl"
+output: html_notebook
+---
+Preliminary Stuff
+
+```{r}
+library(sp)
+library(tspmeta)
+library(tidyverse)
+
+# load data
+load("~/Desktop/SomethingWithNumbers/BeerCrawl/geocodedVicBrew.rdata")
+load("~/Desktop/SomethingWithNumbers/BeerCrawl/geocodedVicPubs.rdata")
+
+VicCraftBeer <- rbind(geocoded.VICbrew, geocoded.VICpubs)
+
+VicCraftBeer <-  VicCraftBeer[!duplicated(VicCraftBeer$name), ]
+```
+
+
+# Limiting the Selection
+Let's make this easy to start, and use my neighbourhood favourites.
+```{r}
+Richmond <- subset(VicCraftBeer, lat < -37.803399 & lat > -37.820602
+                   & lng > 144.990518 & lng < 145.014372 )
+
+# (ugh) "The Spready" is not a craft beer bar!
+Richmond <- Richmond[!Richmond$name == "Spread Eagle Hotel", ]
+# And 6 stops is probably enough 
+Richmond <- Richmond[!Richmond$name == "The Carringbush Hotel", ]
+```
+
+
+# A straight forward TSP 
+```{r}
+# turn the co-ords into a matrix 
+coords.df <- data.frame(long=Richmond$lng, lat=Richmond$lat)
+coords.mx <- as.matrix(coords.df)
+
+# Compute great-circle distance matrix
+dist.mx <- spDists(coords.mx, longlat=TRUE)
+dist.mx
+
+# TSP object
+tsp.ins <- tsp_instance(coords.mx, dist.mx )
+tsp.ins
+
+# Solve 
+tour <- run_solver(tsp.ins, method="2-opt")
+tour
+
+# Plot
+autoplot(tsp.ins, tour)
+```
+
+
+# Apply the GoogleDirections API 
+We can't fly between venues though, so back to google
+```{r}
+
+```
+ 
+
+# Then Solve Again
+
+```{r}
+# travel time matrix
+
+# tsp sovler 
+
+```
+
+
+# Plot Route in Leaflet
+
+```{r}
+
+```
+
+# Go Huge
+Get all the directions time for those in inner melbourne (pick coords), set a max time and number and solve again 
+```{r}
+
+```
+
