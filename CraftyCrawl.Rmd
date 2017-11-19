@@ -4,22 +4,34 @@ output: html_notebook
 ---
 Preliminary Stuff
 
+```{r, include=FALSE}
+setwd("~/Desktop/SomethingWithNumbers/CraftBeerCrawl")
+```
+
 ```{r}
 library(sp)
 library(tspmeta)
 library(tidyverse)
+library(leaflet)
 
 # load data
-load("~/Desktop/SomethingWithNumbers/BeerCrawl/geocodedVicBrew.rdata")
-load("~/Desktop/SomethingWithNumbers/BeerCrawl/geocodedVicPubs.rdata")
+load("geocodedVicBrew.rdata")
+load("geocodedVicPubs.rdata")
 
+# remove a few odd matches
+geocoded.VICbrew <- geocoded.VICbrew %>% filter(grepl("VIC", address)) 
+geocoded.VICpubs <- geocoded.VICpubs %>% filter(grepl("VIC", address)) 
+
+# add type field
+geocoded.VICbrew <- mutate(geocoded.VICbrew, type = rep("Brewery", length(geocoded.VICbrew$name)))
+geocoded.VICpubs <- mutate(geocoded.VICpubs, type = rep("Pub", length(geocoded.VICpubs$name)))                        
+# bind together and check for duplicates 
 VicCraftBeer <- rbind(geocoded.VICbrew, geocoded.VICpubs)
-
-VicCraftBeer <-  VicCraftBeer[!duplicated(VicCraftBeer$name), ]
+VicCraftBeer <- VicCraftBeer[!duplicated(VicCraftBeer$name), ]
 ```
 
 
-# Limiting the Selection
+## Limiting the Selection
 Let's make this easy to start, and use my neighbourhood favourites.
 ```{r}
 Richmond <- subset(VicCraftBeer, lat < -37.803399 & lat > -37.820602
@@ -29,10 +41,14 @@ Richmond <- subset(VicCraftBeer, lat < -37.803399 & lat > -37.820602
 Richmond <- Richmond[!Richmond$name == "Spread Eagle Hotel", ]
 # And 6 stops is probably enough 
 Richmond <- Richmond[!Richmond$name == "The Carringbush Hotel", ]
+
+# Add an ID column
+Richmond <- Richmond %>% 
+  mutate(id = 1:n())
 ```
 
 
-# A straight forward TSP 
+## A straight forward TSP 
 ```{r}
 # turn the co-ords into a matrix 
 coords.df <- data.frame(long=Richmond$lng, lat=Richmond$lat)
@@ -50,8 +66,50 @@ tsp.ins
 tour <- run_solver(tsp.ins, method="2-opt")
 tour
 
+# Compare Solvers
+tours = sapply(c("nn", "cheapest_insertion", "arbitrary_insertion", "2-opt"), function(solver) {
+  list(solver = run_solver(tsp.ins, method = solver))
+})
+tours
+# 2-opt is pretty good!
+
+# Permutation Vector 
+tour_order <- as.integer(tour)
+
 # Plot
 autoplot(tsp.ins, tour)
+
+# reorder
+Richmond_tour <- Richmond[match(tour_order, Richmond$id),]
+Richmond_tour
+
+```
+
+```{r Map Things, include=FALSE}
+attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
+
+IconCraft <- makeIcon(iconUrl = "beer-2.png",
+                      iconAnchorX = 18, iconAnchorY = 12)
+
+```
+
+## Map it
+```{r}
+# On a Map
+
+map <- leaflet()%>%
+  setView(145.000017, -37.815943, 14) %>% 
+  addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
+           attribution = attribution1
+  ) %>%
+ addMarkers(lng = Richmond_tour$lng, lat = Richmond_tour$lat,
+             icon = IconCraft,
+             popup = paste("<b>", Richmond_tour$name, "</b><br/>", Richmond_tour$address),
+             group = "Location"
+  ) %>% 
+  addPolylines(lng = Richmond_tour$lng, lat = Richmond_tour$lat)
+map
+
 ```
 
 
@@ -83,4 +141,69 @@ Get all the directions time for those in inner melbourne (pick coords), set a ma
 ```{r}
 
 ```
+
+
+### Useful things from along the way
+https://rpubs.com/leehbi/tour
+```{r}
+# Using this function from: https://rpubs.com/walkerke/points_to_line
+library(sp)
+library(maptools)
+
+points_to_line <- function(data, long, lat, id_field = NULL, sort_field = NULL) {
+  
+  # Convert to SpatialPointsDataFrame
+  coordinates(data) <- c(long, lat)
+  
+  # If there is a sort field...
+  if (!is.null(sort_field)) {
+    if (!is.null(id_field)) {
+      data <- data[order(data[[id_field]], data[[sort_field]]), ]
+    } else {
+      data <- data[order(data[[sort_field]]), ]
+    }
+  }
+  
+  # If there is only one path...
+  if (is.null(id_field)) {
+    
+    lines <- SpatialLines(list(Lines(list(Line(data)), "id")))
+    
+    return(lines)
+    
+    # Now, if we have multiple lines...
+  } else if (!is.null(id_field)) {  
+    
+    # Split into a list by ID field
+    paths <- sp::split(data, data[[id_field]])
+    
+    sp_lines <- SpatialLines(list(Lines(list(Line(paths[[1]])), "line1")))
+    
+    # I like for loops, what can I say...
+    for (p in 2:length(paths)) {
+      id <- paste0("line", as.character(p))
+      l <- SpatialLines(list(Lines(list(Line(paths[[p]])), id)))
+      sp_lines <- spRbind(sp_lines, l)
+    }
+    
+    return(sp_lines)
+  }
+}
+
+library(leaflet)
+
+dat <- read.csv('shapes.txt')
+
+v_lines <- points_to_line(data = dat, 
+                          long = "shape_pt_lon", 
+                          lat = "shape_pt_lat", 
+                          id_field = "shape_id", 
+                          sort_field = "shape_pt_sequence")
+
+leaflet(data = v_lines) %>%
+  addTiles() %>%
+  addPolylines()
+
+```
+
 
