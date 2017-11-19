@@ -143,7 +143,6 @@ DIYPlaces <- function(search_text,verbose=FALSE) {
     lng <- x$results[[1]]$geometry$location$lng
     formatted_address  <- x$results[[1]]$formatted_address
     return(c(search_text, lat, lng, formatted_address))
-    Sys.sleep(0.5)
   } else if(x$status=="ZERO_RESULTS") {
     return(c(paste0(search_text),"0","0","0"))
   } else if(x$status=="OVER_QUERY_LIMIT") {
