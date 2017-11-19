@@ -2,56 +2,285 @@
 title: "A Crafty Crawl"
 output: html_notebook
 ---
-Preliminary Stuff
 
 ```{r, include=FALSE}
 setwd("~/Desktop/SomethingWithNumbers/CraftBeerCrawl")
-```
 
-```{r}
 library(sp)
 library(tspmeta)
 library(tidyverse)
 library(leaflet)
+library(googleway)
+library(RCurl)
+library(RJSONIO)
+library(plyr)
 
+
+source("~/Desktop/SomethingWithNumbers/BeerMap/key.R")
+
+```
+
+# Background 
+Earlier this year, Beer Cartel ran their annual
+[Beer Cartel Australian Craft Beer Survey](https://www.beercartel.com.au/blog/2017-australian-craft-beer-survey-results/).  I thought'd be fun to find the most optimal craft beer crawl in each captial city - with a mix of breweries and bars/pubs. Over 17,000 craft beer drinkers took part in the survey, and to be the 'best' a bar/pub made had to achieve at least 1% of the vote for it's state.  I've also included breweries (as so many of them have on site taprooms - TODO: Check this is a good assumption)  and if it was in the survey, I've considered it 'craft' (contentious I know!). 
+
+# The Data
+```{r, include=FALSE}
 # load data
-load("geocodedVicBrew.rdata")
-load("geocodedVicPubs.rdata")
+Breweries <- read_csv("BestBrewery.csv")
+QldBar <- read_csv("QldBar.csv")
+NswBar <- read_csv("NswBar.csv")
+ActBar <- read_csv("ActBar.csv")
+VicBar <- read_csv("VicBar.csv")
+TasBar <- read_csv("TasBar.csv")
+SABar <- read_csv("SaBar.csv")
+WABar <- read_csv("WaBar.csv")
 
-# remove a few odd matches
-geocoded.VICbrew <- geocoded.VICbrew %>% filter(grepl("VIC", address)) 
-geocoded.VICpubs <- geocoded.VICpubs %>% filter(grepl("VIC", address)) 
+```
+```{r}
+Breweries 
+QldBar 
+NswBar 
+ActBar 
+VicBar 
+TasBar 
+SABar
+WABar
 
-# add type field
-geocoded.VICbrew <- mutate(geocoded.VICbrew, type = rep("Brewery", length(geocoded.VICbrew$name)))
-geocoded.VICpubs <- mutate(geocoded.VICpubs, type = rep("Pub", length(geocoded.VICpubs$name)))                        
-# bind together and check for duplicates 
-VicCraftBeer <- rbind(geocoded.VICbrew, geocoded.VICpubs)
-VicCraftBeer <- VicCraftBeer[!duplicated(VicCraftBeer$name), ]
+```
+
+# Google
+Before passing to the GooglePlaces API, the data will need a bit of a tidy up.
+```{r}
+# Add in State, Country to help googlePlaces along
+Breweries$State <- rep("Australia", length(Breweries$Brewery))
+QldBar$State <- rep("QLD", length(QldBar$Bar))
+NswBar$State <- rep("NSW", length(NswBar$Bar))
+ActBar$State <- rep("ACT", length(ActBar$Bar))
+VicBar$State <- rep("VIC", length(VicBar$Bar))
+TasBar$State <- rep("TAS", length(TasBar$Bar))
+SABar$State <- rep("SA", length(SABar$Bar))
+WABar$State <- rep("WA", length(WABar$Bar))
+
+# Combined
+Bars <- rbind(QldBar, NswBar, ActBar, VicBar, TasBar, SABar, WABar)
+Bars <- rename(Bars, Venue = Bar)
+Bars$Type <- rep("Bar",length(Bars$Venue))
+Breweries <- rename(Breweries, Venue = Brewery)
+Breweries$Type <- rep("Brewery",length(Breweries$Venue))
+CraftBeerAu <- rbind(Breweries, Bars)
+colnames(CraftBeerAu)[colnames(CraftBeerAu)=="%"] <- "Percent Vote" # the dplyr way didn't work
+
+# Add in State, Country to help googlePlaces along
+CraftBeerAu$Search <- paste(CraftBeerAu$Venue, " in ", CraftBeerAu$State)
+
+# Remove all punct (it messes with url)
+# CraftBeerAu$Search <- gsub("[[:punct:]]", " ", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("/", " ", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("-", " ", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("\\(", " ", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("\\)", " ", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("\\_", "'", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("\\&", "and", CraftBeerAu$Search)
+CraftBeerAu$Search <- gsub("\\+", "and", CraftBeerAu$Search)
+
+```
+
+# Gecoding with Googleway
+```{r}
+# Sample to test 
+Sample <- sample_n(Breweries, 5)
+
+# Loop to get geocode
+Places <- apply(CraftBeerAu, 1, function(x){
+  google_places(search_string = list(x["Search"]),
+                #place_type = "bar",
+                key = key)
+})
+
+# Extract the relevant bits 
+name <- lapply(Places, function(x){ x[["results"]][["name"]][[1]] })
+address <- lapply(Places, function(x){ x[["results"]][["formatted_address"]][[1]] })
+lat <- lapply(Places, function(x){ x[["results"]][["geometry"]][["location"]][["lat"]][[1]] })
+lng <- lapply(Places, function(x){ x[["results"]][["geometry"]][["location"]][["lng"]][[1]] })
+status <- lapply(Places, function(x){ x[["status"]][[1]] })
+
+# Unlsit and make a data frame
+name <- unlist(name)
+address <- unlist(address)
+lat <- unlist(lat)
+lng <- unlist(lng)
+status <- unlist(status)
+
+geocoded.CraftBeerAU <- data.frame(cbind(name, address, lat, lng), stringsAsFactors = FALSE)
+
+geocoded.CraftBeerAU$lng <- as.numeric(geocoded.CraftBeerAU$lng)
+geocoded.CraftBeerAU$lat <- as.numeric(geocoded.CraftBeerAU$lat)
+
+# save(geocoded.CraftBeerAU, file = "geocodedCraftBeerAu.rdata")
+
+```
+
+Googleway is nice, but I hate not being able to tell which rows weren't geocoded, so then:
+```{r, eval=FALSE, include=FALSE}
+
+# To access the GooglePlaces API
+# Make a url like: https://maps.googleapis.com/maps/api/place/textsearch/json?query=123+main+street&key=YOUR_API_KEY
+url <- function(search_text, return.call = "json") {
+  root <- "https://maps.googleapis.com/maps/api/place/textsearch/"
+  u <- paste(root, return.call, "?query=", search_text, "&key=", key, sep = "")
+  return(URLencode(u))
+}
+
+DIYPlaces <- function(search_text,verbose=FALSE) {
+  if(verbose) cat(search_text,"\n")
+  u <- url(search_text)
+  doc <- getURL(u)
+  x <- fromJSON(doc,simplify = FALSE)
+  if(x$status=="OK") {
+    search_text <- search_text
+    lat <- x$results[[1]]$geometry$location$lat
+    lng <- x$results[[1]]$geometry$location$lng
+    formatted_address  <- x$results[[1]]$formatted_address
+    return(c(search_text, lat, lng, formatted_address))
+    Sys.sleep(0.5)
+  } else if(x$status=="ZERO_RESULTS") {
+    return(c(paste0(search_text),"0","0","0"))
+  } else if(x$status=="OVER_QUERY_LIMIT") {
+    return(c(paste0(search_text),"limit","limit","limit"))
+  } else {
+    return(c(paste0(search_text),NA,NA,NA))
+  }
+}
+
+# sample_diy <- sample_n(CraftBeerAu, 5)
+# sample_search<- sample_diy$Search
+# sample_geocoded <- ldply(sample_search, function(x) DIYPlaces(x))
+
+# sample_diy <- sample_n(CraftBeerAu, 5)
+search <- CraftBeerAu$Search
+geocoded_search <- ldply(search, function(x) DIYPlaces(x))
+
+names(geocoded_search)  <- c("Search", "lat", "lng", "Address")
+
+geocoded_search <- as.data.frame(geocoded_search)
+
+CraftBeerAu_geocoded <- left_join(CraftBeerAu, geocoded_search, by = "Search")
+#save(CraftBeerAu_geocoded, file = "DIYgeocodedCraftBeerAu.rdata")
+
+CraftBeerAu_geocoded
+```
+
+
+
+```{r}
+load("DIYgeocodedCraftBeerAu.rdata")
+
+```
+
+# Not Found
+There's 56 venues that were unable to be found.  Reviewing the list below, it looks to be made up of gypsy brewers (eg Doctor's Orders) or breweries not open to the public (Bodriggy) or faux craft brewers (Fat Yak).  There are two I'll manually fix - The Durham in Canberra (officially called The Durham Castle Arms) and Exit Brewing as they've opened a brew pub in Richmond. TODO: Check for others like these - maybe the places details api or use opening hours from the results).  Also the API has put The Terminus on the Vic/NSW border not it's usual spot in Fitzroy. 
+
+```{r}
+not_found <- CraftBeerAu_geocoded %>% filter(lat == 0 )
+not_found
+```
+
+```{r}
+# The Durham
+# Green Square, 2 Jardine St, Kingston ACT 2604 -35.315726, 149.141306
+CraftBeerAu_geocoded$Address[CraftBeerAu_geocoded$Venue == "The Durham"] <-  "Green Square, 2 Jardine St, Kingston ACT 2604, Australia"
+CraftBeerAu_geocoded$lat[CraftBeerAu_geocoded$Venue == "The Durham"] <- -35.315726
+CraftBeerAu_geocoded$lon[CraftBeerAu_geocoded$Venue == "The Durham"] <- 149.141306
+
+# Exit - Uitgang Bar
+# 406 Bridge Rd, Richmond VIC 3121 -37.819382, 145.005025
+CraftBeerAu_geocoded$Address[CraftBeerAu_geocoded$Venue == "Exit Brewing"] <-  "406 Bridge Rd, Richmond VIC 3121, Australia"
+CraftBeerAu_geocoded$lat[CraftBeerAu_geocoded$Venue == "Exit Brewing"] <- -37.819382
+CraftBeerAu_geocoded$lon[CraftBeerAu_geocoded$Venue == "Exit Brewing"] <- 145.005025
+
+# Going by the taplist (and the logo) GooglePlaces has selected the wrong Terminus Hotel (there's a few!) it should be - Terminus Hotel Fitzroy North 492 Queens Parade, North Fitzroy VIC 3068 -37.785139, 144.994464
+CraftBeerAu_geocoded$Address[CraftBeerAu_geocoded$Venue == "The Terminus Hotel"] <-  "492 Queens Parade, North Fitzroy VIC 3068, Australia"
+CraftBeerAu_geocoded$lat[CraftBeerAu_geocoded$Venue == "The Terminus Hotel"] <- -37.785139
+CraftBeerAu_geocoded$lon[CraftBeerAu_geocoded$Venue == "The Terminus Hotel"] <- 144.994464
+
+# fix the spelling of cafe (caf due to removing punc) and _ for ' 
+CraftBeerAu_geocoded$Venue <- gsub("Caf", "Cafe", CraftBeerAu_geocoded$Venue)
+CraftBeerAu_geocoded$Venue <- gsub("_", "'", CraftBeerAu_geocoded$Venue)
+
+# Fix data types
+CraftBeerAu_geocoded$lat <- as.numeric(CraftBeerAu_geocoded$lat)
+CraftBeerAu_geocoded$lon <- as.numeric(CraftBeerAu_geocoded$lon)
+
+``` 
+
+# Add a map (because)
+```{r Map Things, include=FALSE}
+attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
+
+IconCraft <- makeIcon(iconUrl = "beer-1.png",
+                      iconAnchorX = 18, iconAnchorY = 12)
+IconBrew <- makeIcon(iconUrl = "barrel-3.png",
+                    iconAnchorX = 18, iconAnchorY = 12)
+IconBar <- makeIcon(iconUrl = "beer-2.png",
+                    iconAnchorX = 18, iconAnchorY = 12)
+
+```
+
+
+```{r}
+# Split for layers
+AuBars <- subset(CraftBeerAu_geocoded, Type == "Bar")
+AuBreweries <- subset(CraftBeerAu_geocoded, Type == "Brewery")
+# Also there's too many breweries! 
+AuBreweries <- subset(AuBreweries, `Total votes` >= 5)
+
+
+# mapping 
+map <- leaflet()%>%
+  setView(145.000017, -37.815943, 6) %>% 
+  addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
+           attribution = attribution1
+  ) %>%
+ addMarkers(lng = AuBreweries$lon, lat = AuBreweries$lat,
+             icon = IconBrew,
+             popup = paste("<b>", AuBreweries$Venue, "</b><br/>", 
+                           AuBreweries$Address, "<br/> Percent Vote:", AuBreweries$`Percent Vote`),
+             group = "Breweries"
+  )  %>%
+ addMarkers(lng = AuBars$lon, lat = AuBars$lat,
+             icon = IconBar,
+             popup = paste("<b>", AuBars$Venue, "</b><br/>", 
+                           AuBars$Address, "<br/> Percent Vote:", AuBars$`Percent Vote`),
+             group = "Bars"
+  )  %>% 
+  addLayersControl(
+    overlayGroups = c("Breweries", "Bars"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) 
+map
 ```
 
 
 ## Limiting the Selection
-Let's make this easy to start, and use my neighbourhood favourites.
+Let's make this easy to start, and use my neighbourhood.
 ```{r}
-Richmond <- subset(VicCraftBeer, lat < -37.803399 & lat > -37.820602
-                   & lng > 144.990518 & lng < 145.014372 )
+Richmond <- subset(CraftBeerAu_geocoded, lat < -37.803399 & lat > -37.820602 & lon > 144.990518 & lon < 145.014372 )
 
-# (ugh) "The Spready" is not a craft beer bar!
-Richmond <- Richmond[!Richmond$name == "Spread Eagle Hotel", ]
-# And 6 stops is probably enough 
-Richmond <- Richmond[!Richmond$name == "The Carringbush Hotel", ]
+# You can't visit Hawthorn Brewing Co (TODO: find a way to sort visitable breweries from those you can't! weirdly this brewery doesn't show in google maps)
+Richmond <- Richmond[!Richmond$Venue == "Hawthorn Brewing Co", ]
 
 # Add an ID column
-Richmond <- Richmond %>% 
-  mutate(id = 1:n())
+Richmond$id <- rownames(Richmond)
+
+Richmond
 ```
 
 
 ## A straight forward TSP 
 ```{r}
 # turn the co-ords into a matrix 
-coords.df <- data.frame(long=Richmond$lng, lat=Richmond$lat)
+coords.df <- data.frame(long=Richmond$lon, lat=Richmond$lat)
 coords.mx <- as.matrix(coords.df)
 
 # Compute great-circle distance matrix
@@ -85,13 +314,7 @@ Richmond_tour
 
 ```
 
-```{r Map Things, include=FALSE}
-attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> is licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
 
-IconCraft <- makeIcon(iconUrl = "beer-2.png",
-                      iconAnchorX = 18, iconAnchorY = 12)
-
-```
 
 ## Map it
 ```{r}
@@ -102,12 +325,12 @@ map <- leaflet()%>%
   addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
            attribution = attribution1
   ) %>%
- addMarkers(lng = Richmond_tour$lng, lat = Richmond_tour$lat,
+ addMarkers(lng = Richmond_tour$lon, lat = Richmond_tour$lat,
              icon = IconCraft,
-             popup = paste("<b>", Richmond_tour$name, "</b><br/>", Richmond_tour$address),
+             popup = paste("<b>", Richmond_tour$Venue, "</b><br/>", Richmond_tour$Address),
              group = "Location"
   ) %>% 
-  addPolylines(lng = Richmond_tour$lng, lat = Richmond_tour$lat)
+  addPolylines(lng = Richmond_tour$lon, lat = Richmond_tour$lat)
 map
 
 ```
@@ -137,15 +360,18 @@ We can't fly between venues though, so back to google
 ```
 
 # Go Huge
-Get all the directions time for those in inner melbourne (pick coords), set a max time and number and solve again 
+Get all the directions time for those in each city (pick coords or limit to best of best), set a max time and number and solve again. 
 ```{r}
 
 ```
 
 
+
+```{r, eval=FALSE, include=FALSE}
+
 ### Useful things from along the way
-https://rpubs.com/leehbi/tour
-```{r}
+# https://rpubs.com/leehbi/tour
+
 # Using this function from: https://rpubs.com/walkerke/points_to_line
 library(sp)
 library(maptools)
