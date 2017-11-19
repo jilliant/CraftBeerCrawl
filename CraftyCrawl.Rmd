@@ -27,14 +27,14 @@ Earlier this year, Beer Cartel ran their annual
 # The Data
 ```{r, include=FALSE}
 # load data
-Breweries <- read_csv("BestBrewery.csv")
-QldBar <- read_csv("QldBar.csv")
-NswBar <- read_csv("NswBar.csv")
-ActBar <- read_csv("ActBar.csv")
-VicBar <- read_csv("VicBar.csv")
-TasBar <- read_csv("TasBar.csv")
-SABar <- read_csv("SaBar.csv")
-WABar <- read_csv("WaBar.csv")
+Breweries <- read_csv("Data/BestBrewery.csv")
+QldBar <- read_csv("Data/QldBar.csv")
+NswBar <- read_csv("Data/NswBar.csv")
+ActBar <- read_csv("Data/ActBar.csv")
+VicBar <- read_csv("Data/VicBar.csv")
+TasBar <- read_csv("Data/TasBar.csv")
+SABar <- read_csv("Data/SaBar.csv")
+WABar <- read_csv("Data/WaBar.csv")
 
 ```
 ```{r}
@@ -117,7 +117,7 @@ geocoded.CraftBeerAU <- data.frame(cbind(name, address, lat, lng), stringsAsFact
 geocoded.CraftBeerAU$lng <- as.numeric(geocoded.CraftBeerAU$lng)
 geocoded.CraftBeerAU$lat <- as.numeric(geocoded.CraftBeerAU$lat)
 
-# save(geocoded.CraftBeerAU, file = "geocodedCraftBeerAu.rdata")
+# save(geocoded.CraftBeerAU, file = "Data/geocodedCraftBeerAu.rdata")
 
 ```
 
@@ -166,7 +166,7 @@ names(geocoded_search)  <- c("Search", "lat", "lng", "Address")
 geocoded_search <- as.data.frame(geocoded_search)
 
 CraftBeerAu_geocoded <- left_join(CraftBeerAu, geocoded_search, by = "Search")
-#save(CraftBeerAu_geocoded, file = "DIYgeocodedCraftBeerAu.rdata")
+#save(CraftBeerAu_geocoded, file = "Data/DIYgeocodedCraftBeerAu.rdata")
 
 CraftBeerAu_geocoded
 ```
@@ -174,7 +174,7 @@ CraftBeerAu_geocoded
 
 
 ```{r}
-load("DIYgeocodedCraftBeerAu.rdata")
+load("Data/DIYgeocodedCraftBeerAu.rdata")
 
 ```
 
@@ -218,11 +218,11 @@ CraftBeerAu_geocoded$lon <- as.numeric(CraftBeerAu_geocoded$lon)
 ```{r Map Things, include=FALSE}
 attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
 
-IconCraft <- makeIcon(iconUrl = "beer-1.png",
+IconCraft <- makeIcon(iconUrl = "Icons/beer-1.png",
                       iconAnchorX = 18, iconAnchorY = 12)
-IconBrew <- makeIcon(iconUrl = "barrel-3.png",
+IconBrew <- makeIcon(iconUrl = "Icons/barrel-3.png",
                     iconAnchorX = 18, iconAnchorY = 12)
-IconBar <- makeIcon(iconUrl = "beer-2.png",
+IconBar <- makeIcon(iconUrl = "Icons/beer-2.png",
                     iconAnchorX = 18, iconAnchorY = 12)
 
 ```
