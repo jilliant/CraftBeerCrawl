@@ -95,7 +95,7 @@ Sample <- sample_n(Breweries, 5)
 # Loop to get geocode
 Places <- apply(CraftBeerAu, 1, function(x){
   google_places(search_string = list(x["Search"]),
-                #place_type = "bar",
+               # place_type = "bar",
                 key = PlacesKey)
 })
 
@@ -114,9 +114,9 @@ lng <- unlist(lng)
 status <- unlist(status)
 
 geocoded.CraftBeerAU <- data.frame(cbind(name, address, lat, lng), stringsAsFactors = FALSE)
-
 geocoded.CraftBeerAU$lng <- as.numeric(geocoded.CraftBeerAU$lng)
 geocoded.CraftBeerAU$lat <- as.numeric(geocoded.CraftBeerAU$lat)
+
 
 # save(geocoded.CraftBeerAU, file = "Data/geocodedCraftBeerAu.rdata")
 
@@ -182,7 +182,10 @@ load("Data/DIYgeocodedCraftBeerAu.rdata")
 There's 56 venues that were unable to be found.  Reviewing the list below, it looks to be made up of gypsy brewers (eg Doctor's Orders) or breweries not open to the public (Bodriggy) or faux craft brewers (Fat Yak).  There are two I'll manually fix - The Durham in Canberra (officially called The Durham Castle Arms) and Exit Brewing as they've opened a brew pub in Richmond. TODO: Check for others like these - maybe the places details api or use opening hours from the results).  Also the API has put The Terminus on the Vic/NSW border not it's usual spot in Fitzroy. 
 
 ```{r}
-not_found <- CraftBeerAu_geocoded %>% filter(lat == 0 )
+CraftBeerAu_geocoded$lat <- as.numeric(CraftBeerAu_geocoded$lat)
+CraftBeerAu_geocoded$lon <- as.numeric(CraftBeerAu_geocoded$lon)
+not_found <- CraftBeerAu_geocoded %>% 
+             filter(lat == 0 )
 not_found
 ```
 
@@ -209,8 +212,6 @@ CraftBeerAu_geocoded$Address[CraftBeerAu_geocoded$Venue == "The Royal Oak"] <-  
 CraftBeerAu_geocoded$lat[CraftBeerAu_geocoded$Venue == "The Royal Oak"] <- -34.905231
 CraftBeerAu_geocoded$lon[CraftBeerAu_geocoded$Venue == "The Royal Oak"] <- 138.595401
 
-
-
 # fix the spelling of cafe (caf due to removing punc) and _ for ' 
 CraftBeerAu_geocoded$Venue <- gsub("Caf", "Cafe", CraftBeerAu_geocoded$Venue)
 CraftBeerAu_geocoded$Venue <- gsub("_", "'", CraftBeerAu_geocoded$Venue)
@@ -222,9 +223,15 @@ CraftBeerAu_geocoded <- CraftBeerAu_geocoded %>% filter(!lat == 0 )
 CraftBeerAu_geocoded$lat <- as.numeric(CraftBeerAu_geocoded$lat)
 CraftBeerAu_geocoded$lon <- as.numeric(CraftBeerAu_geocoded$lon)
 
+CraftBeerAu_geocoded$`Percent Vote` <- gsub("\\%", "", CraftBeerAu_geocoded$`Percent Vote`)
+CraftBeerAu_geocoded$`Percent Vote`<- as.numeric(CraftBeerAu_geocoded$`Percent Vote`)
+
+# Get Postocode for Breweries
+
+
 # Also there's too many breweries! 
 CraftBeer <- CraftBeerAu_geocoded %>%
-  filter(`Total votes` >= 5)
+  filter(`Percent Vote` >= 0.1)
 
 ``` 
 
@@ -251,10 +258,10 @@ mystyle<-'[{"elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"elementT
 iconpng <- c("https://user-images.githubusercontent.com/11832379/33227243-28d75056-d1f3-11e7-93a6-347ad0e9e0e5.png", "https://user-images.githubusercontent.com/11832379/33227244-290e5830-d1f3-11e7-9fa1-d1822c26f0e5.png")
 names(iconpng) <- c("Brewery", "Bar")
 CraftBeer$icons <- iconpng[CraftBeer$Type]
-  
-google_map(key = MapKey, styles = mystyle) %>%
-  add_markers(data = CraftBeer, lat = "lat", lon = "lon", marker_icon = "icons")
 
+  
+google_map(key = MapKey, styles = mystyle, search_box = TRUE) %>%
+  add_markers(data = CraftBeer, lat = "lat", lon = "lon", marker_icon = "icons", info_window = "Venue")
 
 ```
 
@@ -342,11 +349,15 @@ results <- gmapsdistance(origin = Richmond_dist$latlon,
                         departure = 1514742000,
                         key = DirectionsMatrixKey)
 
+drivingMatrix <- gmapsdistance(origin = Richmond_dist$latlon, 
+                        destination = Richmond_dist$latlon, 
+                        mode = "driving")
+
 #Alternate https://rgeomatic.hypotheses.org/854
 # https://www.r-bloggers.com/introducing-the-nominatim-geocoding-package/
 
-library(nominatim)
-osm_chk <- osm_search("Pirate Life in Australia", limit=20)
+# library(nominatim)
+# osm_chk <- osm_search("Pirate Life in Australia", limit=20)
 
 ```
  
@@ -371,7 +382,17 @@ colnames(distance.mx) <- NULL
 rownames(distance.mx) <- NULL
 # The distance matrix is not symmetric - either, so manually change the problem one 
 # TODO why???
+
+# # this is worse
+# distancematrix <- data.frame(drivingMatrix$Distance)
+# distancematrix <- distancematrix[,-1]
+# distance.mx <- as.matrix(distancematrix)
+# colnames(distance.mx) <- NULL
+# rownames(distance.mx) <- NULL
+# isSymmetric.matrix(distance.mx)
+
 distance.mx <- replace(distance.mx, distance.mx == 2721, 2719)
+distance.mx <- replace(distance.mx, distance.mx == 1185, 1184)
 isSymmetric.matrix(distance.mx)
 
 # setup tsp
@@ -410,8 +431,58 @@ Richmond_tour
 ```{r}
 
 # matrix not symmetric is concerning 
-# maybe use googleway again as it includes the path, extract the distance combos and popualate matrix or ..
+# maybe use googleway again as it includes the path, extract the distance combos
 
+combo <- expand.grid(Richmond$Address, Richmond$Address)
+names(combo) <- c("orig", "dest")
+
+Distances <- apply(combo, 1, function(x){
+  google_distance(origins = list(x["orig"]),
+                destinations = list(x["dest"]),
+                key = DirectionsMatrixKey,
+                mode = "walking")
+})
+
+listDist <- lapply(Distances,function(x){x$rows$elements[[1]]$distance$value})
+listDur <- lapply(Distances,function(x){x$rows$elements[[1]]$duration$value})
+listOrig<- lapply(Distances, function(x){x[["origin_addresses"]][[1]]})
+listDest<- lapply(Distances, function(x){x[["destination_addresses"]][[1]]})
+listStatus <- lapply(Distances, function(x){x[["status"]][[1]]})
+
+# Unlsit and make a data frame
+Dist <- unlist(listDist)
+Dur <- unlist(listDur)
+Origin <- unlist(listOrig)
+Destination <- unlist(listDest)
+Status <- unlist(listStatus)
+
+Distances.df <- data.frame(cbind(Origin, Destination, Dist, Dur, Status), stringsAsFactors = FALSE)
+
+
+
+# Directions
+Directions <- apply(combo, 1, function(x){
+  google_directions(origin = paste(x["orig"]),
+                        destination = paste(x["dest"]),
+                        key = DirectionsKey,
+                        mode = "walking",
+                        simplify = TRUE)
+})
+
+# todo 
+listOrig<- lapply(Directions, function(x){x})
+listDest<- lapply(Directions, function(x){x})
+listPoly <- lapply(Directions,function(x){x$routes$overview_polyline$points})
+
+Origin <- unlist(listOrig)
+Destination <- unlist(listDest)
+Poly <- unlist(listPoly)
+
+Directions.df <- data.frame(cbind(Origin, Destination, Poly))
+
+```
+
+```{r}
 # a diy matrix api function - not working correctly though  :(
 
 library(RCurl)
@@ -445,6 +516,7 @@ Rdestination <- Richmond_dist$latlon
 diymatrix <- ldply(Rorigin, Rdestination, function(x) walk(x))
 
 ```
+
 
 
 # Plot Route in Leaflet
