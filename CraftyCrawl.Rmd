@@ -222,53 +222,40 @@ CraftBeerAu_geocoded <- CraftBeerAu_geocoded %>% filter(!lat == 0 )
 CraftBeerAu_geocoded$lat <- as.numeric(CraftBeerAu_geocoded$lat)
 CraftBeerAu_geocoded$lon <- as.numeric(CraftBeerAu_geocoded$lon)
 
+# Also there's too many breweries! 
+CraftBeer <- CraftBeerAu_geocoded %>%
+  filter(`Total votes` >= 5)
+
 ``` 
 
 # Add a map (because)
 ```{r Map Things, include=FALSE}
-attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
 
-IconCraft <- makeIcon(iconUrl = "Icons/beer-1.png",
-                      iconAnchorX = 18, iconAnchorY = 12)
-IconBrew <- makeIcon(iconUrl = "Icons/barrel-3.png",
-                    iconAnchorX = 18, iconAnchorY = 12)
-IconBar <- makeIcon(iconUrl = "Icons/beer-2.png",
-                    iconAnchorX = 18, iconAnchorY = 12)
+# TODO: add this somewhere in the final product
+attribution1 <- 'Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
 
 ```
 
 
 ```{r}
-# Split for layers
-AuBars <- subset(CraftBeerAu_geocoded, Type == "Bar")
-AuBreweries <- subset(CraftBeerAu_geocoded, Type == "Brewery")
-# Also there's too many breweries! 
-AuBreweries <- subset(AuBreweries, `Total votes` >= 5)
+# With Googleway
+mystyle<-'[{"elementType":"geometry","stylers":[{"color":"#f5f5f5"}]},{"elementType":"geometry.fill","stylers":[{"color":"#feffff"}]},{"elementType":"labels.icon","stylers":[{"visibility":"off"}]},{"elementType":"labels.text.fill","stylers":[{"color":"#616161"}]},{"elementType":"labels.text.stroke","stylers":[{"color":"#f5f5f5"}]},{"featureType":"administrative.land_parcel","elementType":"labels","stylers":[{"visibility":"off"}]},{"featureType":"administrative.land_parcel","elementType":"labels.text.fill","stylers":[{"color":"#bdbdbd"}]},{"featureType":"administrative.locality","elementType":"labels.text.fill","stylers":[{"color":"#000000"}]},{"featureType":"poi","elementType":"geometry","stylers":[{"color":"#eeeeee"}]},{"featureType":"poi","elementType":"labels.text","stylers":[{"visibility":"off"}]},{"featureType":"poi","elementType":"labels.text.fill","stylers":[{"color":"#757575"}]},{"featureType":"poi.business","stylers":[{"visibility":"off"}]},{"featureType":"poi.park","elementType":"geometry","stylers":[{"color":"#e5e5e5"}]},{"featureType":"poi.park","elementType":"labels.text.fill","stylers":[{"color":"#9e9e9e"}]},{"featureType":"road","elementType":"geometry","stylers":[{"color":"#ffffff"}]},{"featureType":"road","elementType":"labels.icon","stylers":[{"visibility":"off"}]},{"featureType":"road.arterial","elementType":"geometry.fill","stylers":[{"color":"#aaaaaa"}]},{"featureType":"road.arterial","elementType":"labels.text.fill","stylers":[{"color":"#000000"}]},{"featureType":"road.highway","elementType":"geometry","stylers":[{"color":"#dadada"}]},{"featureType":"road.highway","elementType":"geometry.fill","stylers":[{"color":"#919191"}]},{"featureType":"road.highway","elementType":"labels.text.fill","stylers":[{"color":"#000000"}]},{"featureType":"road.local","elementType":"geometry.fill","stylers":[{"color":"#d6d6d6"}]},{"featureType":"road.local","elementType":"labels","stylers":[{"visibility":"off"}]},{"featureType":"road.local","elementType":"labels.text.fill","stylers":[{"color":"#000000"},{"weight":0.5}]},{"featureType":"transit","stylers":[{"visibility":"off"}]},{"featureType":"transit.line","elementType":"geometry","stylers":[{"color":"#e5e5e5"}]},{"featureType":"transit.line","elementType":"labels.icon","stylers":[{"visibility":"on"}]},{"featureType":"transit.station","elementType":"geometry","stylers":[{"color":"#eeeeee"}]},{"featureType":"water","elementType":"geometry","stylers":[{"color":"#c9c9c9"}]},{"featureType":"water","elementType":"labels.text.fill","stylers":[{"color":"#9e9e9e"}]}]'
 
 
-# mapping 
-map <- leaflet()%>%
-  setView(145.000017, -37.815943, 6) %>% 
-  addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
-           attribution = attribution1
-  ) %>%
- addMarkers(lng = AuBreweries$lon, lat = AuBreweries$lat,
-             icon = IconBrew,
-             popup = paste("<b>", AuBreweries$Venue, "</b><br/>", 
-                           AuBreweries$Address, "<br/> Percent Vote:", AuBreweries$`Percent Vote`),
-             group = "Breweries"
-  )  %>%
- addMarkers(lng = AuBars$lon, lat = AuBars$lat,
-             icon = IconBar,
-             popup = paste("<b>", AuBars$Venue, "</b><br/>", 
-                           AuBars$Address, "<br/> Percent Vote:", AuBars$`Percent Vote`),
-             group = "Bars"
-  )  %>% 
-  addLayersControl(
-    overlayGroups = c("Breweries", "Bars"),
-    options = layersControlOptions(collapsed = FALSE)
-  ) 
-map
+# Add custom Markers - https://github.com/SymbolixAU/googleway/issues/54 
+# iconpng <- c("barrel-3.png", "beer-2.png")
+# names(iconpng) <- c("Brewery", "Bar")
+# CraftBeerAu_geocoded$icons <- iconpng[CraftBeerAu_geocoded$Type]
+  
+# :( didnt work, but oddly this does.....
+iconpng <- c("https://user-images.githubusercontent.com/11832379/33227243-28d75056-d1f3-11e7-93a6-347ad0e9e0e5.png", "https://user-images.githubusercontent.com/11832379/33227244-290e5830-d1f3-11e7-9fa1-d1822c26f0e5.png")
+names(iconpng) <- c("Brewery", "Bar")
+CraftBeer$icons <- iconpng[CraftBeer$Type]
+  
+google_map(key = MapKey, styles = mystyle) %>%
+  add_markers(data = CraftBeer, lat = "lat", lon = "lon", marker_icon = "icons")
+
+
 ```
 
 
@@ -329,19 +316,12 @@ Richmond_tour
 ## Map it
 ```{r}
 # On a Map
+Richmond_tour$lat <- as.double(Richmond_tour$lat)
+Richmond_tour$lon <- as.double(Richmond_tour$lon)
 
-map <- leaflet()%>%
-  setView(145.000017, -37.815943, 14) %>% 
-  addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
-           attribution = attribution1
-  ) %>%
- addMarkers(lng = Richmond_tour$lon, lat = Richmond_tour$lat,
-             icon = IconCraft,
-             popup = paste("<b>", Richmond_tour$Venue, "</b><br/>", Richmond_tour$Address),
-             group = "Location"
-  ) %>% 
-  addPolylines(lng = Richmond_tour$lon, lat = Richmond_tour$lat)
-map
+ google_map(data = Richmond_tour, key = MapKey, styles = mystyle) %>%
+      add_polylines(lat = "lat", lon = "lon") %>%
+  add_markers(lat = "lat", lon = "lon", marker_icon = "icons")
 
 ```
 
