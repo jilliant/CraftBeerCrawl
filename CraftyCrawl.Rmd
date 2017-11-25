@@ -371,8 +371,11 @@ timematrix <- timematrix[,-1]
 time.mx <- as.matrix(timematrix)
 colnames(time.mx) <- NULL
 rownames(time.mx) <- NULL
+
+# The time matrix is not symmetric - weird!! forced:
+time.mx <- Matrix::forceSymmetric(time.mx,uplo="L")
+time.mx <- as.matrix(time.mx)
 isSymmetric.matrix(time.mx)
-# The time matrix is not symmetric - weird!!
 
 # so distance then?
 distancematrix <- data.frame(results$Distance)
@@ -380,20 +383,12 @@ distancematrix <- distancematrix[,-1]
 distance.mx <- as.matrix(distancematrix)
 colnames(distance.mx) <- NULL
 rownames(distance.mx) <- NULL
-# The distance matrix is not symmetric - either, so manually change the problem one 
-# TODO why???
-
-# # this is worse
-# distancematrix <- data.frame(drivingMatrix$Distance)
-# distancematrix <- distancematrix[,-1]
-# distance.mx <- as.matrix(distancematrix)
-# colnames(distance.mx) <- NULL
-# rownames(distance.mx) <- NULL
-# isSymmetric.matrix(distance.mx)
-
-distance.mx <- replace(distance.mx, distance.mx == 2721, 2719)
-distance.mx <- replace(distance.mx, distance.mx == 1185, 1184)
+# The distance matrix is ALSO not symmetric (but less difference)
+distance.mx <- Matrix::forceSymmetric(distance.mx,uplo="L")
+distance.mx <- as.matrix(distance.mx)
 isSymmetric.matrix(distance.mx)
+
+# NEED TO SET START POINT
 
 # setup tsp
 tsp.ins.dist <- tsp_instance(coords.mx, distance.mx )
@@ -413,8 +408,7 @@ tours
 
 # Permutation Vector 
 tour_order_dist <- as.integer(tour.dist)
-tour_order
-tour_order_dist
+
 # so the same as flying basically!
 
 # Plot
@@ -423,10 +417,38 @@ autoplot(tsp.ins.dist, tour.dist)
 # reorder
 Richmond_tour_dist <- Richmond[match(tour_order_dist, Richmond$id),]
 Richmond_tour_dist
-Richmond_tour
+
 
 ```
 
+# Directions
+so get the directions in the correct order 
+
+```{r}
+
+# a data frame with the right order 
+
+# Directions API
+Directions <- apply(combo, 1, function(x){
+  google_directions(origin = paste(x["orig"]),
+                        destination = paste(x["dest"]),
+                        key = DirectionsKey,
+                        mode = "walking",
+                        simplify = TRUE)
+})
+
+# todo 
+listOrig<- lapply(Directions, function(x){x})
+listDest<- lapply(Directions, function(x){x})
+listPoly <- lapply(Directions,function(x){x$routes$overview_polyline$points})
+
+Origin <- unlist(listOrig)
+Destination <- unlist(listDest)
+Poly <- unlist(listPoly)
+
+Directions.df <- data.frame(cbind(Origin, Destination, Poly))
+
+````
 
 ```{r}
 
@@ -460,25 +482,6 @@ Distances.df <- data.frame(cbind(Origin, Destination, Dist, Dur, Status), string
 
 
 
-# Directions
-Directions <- apply(combo, 1, function(x){
-  google_directions(origin = paste(x["orig"]),
-                        destination = paste(x["dest"]),
-                        key = DirectionsKey,
-                        mode = "walking",
-                        simplify = TRUE)
-})
-
-# todo 
-listOrig<- lapply(Directions, function(x){x})
-listDest<- lapply(Directions, function(x){x})
-listPoly <- lapply(Directions,function(x){x$routes$overview_polyline$points})
-
-Origin <- unlist(listOrig)
-Destination <- unlist(listDest)
-Poly <- unlist(listPoly)
-
-Directions.df <- data.frame(cbind(Origin, Destination, Poly))
 
 ```
 
