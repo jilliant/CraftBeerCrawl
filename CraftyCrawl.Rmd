@@ -405,9 +405,9 @@ results <- gmapsdistance(origin = Richmond_dist$latlon,
                         departure = 1914742000,
                         key = DirectionsMatrixKey)
 
-drivingMatrix <- gmapsdistance(origin = Richmond_dist$latlon, 
-                        destination = Richmond_dist$latlon, 
-                        mode = "driving")
+# drivingMatrix <- gmapsdistance(origin = Richmond_dist$latlon, 
+#                         destination = Richmond_dist$latlon, 
+#                         mode = "driving")
 
 #Alternate https://rgeomatic.hypotheses.org/854
 # https://www.r-bloggers.com/introducing-the-nominatim-geocoding-package/
@@ -526,8 +526,8 @@ RichmondId<- data.frame(Richmond$Venue)
 RichmondId$ID <- as.integer(rownames(RichmondId))
 
 closestVictoria<- closestVictoria %>% 
-  mutate_all(funs(Victoria$Venue[match(., Victoria$ID)]))# %>% 
-  #rename(Orgin = X1, First = X2, Second = X3, Third = X4, Fourth = X5, Fifth = X6, Sixth = X7)
+  mutate_all(funs(Victoria$Venue[match(., Victoria$ID)])) %>% 
+  rename(Orgin = X1, First = X2, Second = X3, Third = X4, Fourth = X5, Fifth = X6, Sixth = X7)
 closestVictoria
 
 ```
@@ -537,7 +537,7 @@ Check out a sample on a map
 
 # Take one
 Sample <- closestVictoria %>% 
-  slice(50) 
+  slice(1) 
 
 # pivot and bring back the coordinates
 Sample <- as.data.frame(t(Sample))
