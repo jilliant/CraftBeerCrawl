@@ -35,43 +35,6 @@ closestCraftBeerDT
 # add gomap.js
 # https://github.com/rstudio/shiny-examples/tree/master/063-superzip-example
 # 
-# # Define UI for application that draws a histogram
-# #ui <- fluidPage(
-# ui <- bootstrapPage(
-#     tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-#     leafletOutput("map", width = "100%", height = "100%"),
-#     absolutePanel(top = 10, right = 10,
-#                   selectizeInput("Origin",
-#                                  label = ("Origin"),
-#                                  multiple = FALSE,
-#                                  choices = closestCraftBeerDT$Origin,
-#                                  options = list(
-#                                    placeholder = 'Select starting venue, type to search',
-#                                    onInitialize = I('function() { this.setValue(""); }')
-#                                  )),
-#                   
-#                   selectInput("stops", "Number of Stops",
-#                               c(2,3,4,5,6)
-#                   ),
-#                   submitButton("Go!")
-#     )
-#   )
-# 
-# 
-# # Define server logic required to draw a histogram
-# server <- function(input, output) {
-#   
-#   filteredData <- reactive({
-#   # Take one
-#   Sample <- closestCraftBeerDT %>%
-#     filter(Origin == input$Origin)
-#   # Sample <- closestCraftBeerDT %>% 
-#   #   filter(Origin == "10 Toes Brewery")
-#   
-#   # pivot and bring back the coordinates
-#   Sample <- as.data.frame(t(Sample))
-#   Sample$id <- seq.int(nrow(Sample))
-#   
 #   Sample <- Sample %>% 
 #     inner_join(CraftBeer, by = c( "V1" = "Venue" )) %>% 
 #     select("id","V1", "lat", "lon")
@@ -104,39 +67,10 @@ closestCraftBeerDT
 #   Sample_tour$lat <- as.double(Sample_tour$lat)
 #   Sample_tour$lon <- as.double(Sample_tour$lon)
 #   })
-#   
-#   
-#   
-#   
-#   output$map <- renderLeaflet({
-#     leaflet()%>%
-#       setView(133.8807, -27.6980,4) %>% 
-#       addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
-#                attribution = attribution1
-#       )
-#   })
-#   
-#   observe({
-#     leafletProxy("map", data = filteredData()) %>%  
-#       addMarkers(lng = Sample_tour$lon, lat = Sample_tour$lat,
-#                  icon = IconCraft,
-#                  popup = paste(Sample_tour$V1),
-#                  group = "Location"
-#       ) %>% 
-#       addPolylines(lng = Sample_tour$lon, lat = Sample_tour$lat)
-#   })
-#   
-#       
-#   # Data Table
-# 
-#   
-# 
-# }
-# 
-# # Run the application 
-# shinyApp(ui = ui, server = server)
-# 
-# 
+
+
+  
+
 # A Basic App
 ui <- fluidPage(
   titlePanel("Crafty Crawl"),
@@ -159,19 +93,25 @@ server <- function(input, output, session){
 
   output$map <- renderLeaflet({
 
-    filtered <- CraftBeer %>%
-      filter(Venue == input$venueInput)
+    ShowItinerary <- closestCraftBeerDT %>% 
+      filter(Origin == input$venueInput) %>% 
+      select(1:input$stops)
+    Locations <- as.data.frame(t(ShowItinerary))
+    Locations <- Locations %>%
+      inner_join(CraftBeer, by = c( "V1" = "Venue" )) %>%
+      select("V1", "lat", "lon") %>% 
+      mutate(id = seq.int(nrow(Locations)))
+    Locations
     
-    # StartTour <- closestCraftBeerDT %>% 
-    #   filter(Origin == filtered)
+    filtered <- Locations
     
     leaflet(filtered) %>%
       addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
                attribution = attribution1) %>%
       addMarkers(~as.numeric(lon), ~as.numeric(lat),
                  icon = IconCraft,
-                 popup = ~as.character(Venue),
-                 label = ~as.character(Venue))
+                 #popup = ~as.character(V1),#add in address or votes or link to untappd?
+                 label = ~as.character(V1))
   })
 
   output$itinerary <- renderTable({
@@ -180,7 +120,6 @@ server <- function(input, output, session){
       select(1:input$stops)
     ShowItinerary
   })
-  
 }
 
 shinyApp(ui, server)
