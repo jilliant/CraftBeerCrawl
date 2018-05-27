@@ -34,17 +34,25 @@ closestCraftBeerDT
 # TODO Save as rdata and load
 
 # UI ---- 
-ui <- fluidPage(
-  
-  titlePanel("Crafty Crawl"),
-  
-  mainPanel(
-    leafletOutput("map")),
-    #br(), br(),
-    #tableOutput("chk"),
-    #tableOutput("itinerary")),
-  
-  sidebarPanel(
+#ui <- fluidPage(
+# titlePanel("Crafty Crawl"),
+# 
+# mainPanel(
+#   tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
+#   leafletOutput("map")),
+# sidebarPanel( 
+#   tags$style(".well {background-color:#e6e6e6;}"),
+#   tags$style(type = "text/css", "{height: calc(100vh - 80px) !important;}"),
+#   #tags$style(".well {background-color:#FCDC32;}"), # yellow sidebar
+
+ui <- bootstrapPage(
+  tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
+  leafletOutput("map", width = "100%", height = "100%"),
+  absolutePanel(id = "controls", class = "panel panel-default", fixed = TRUE,
+                draggable = TRUE, top = 20, left = "auto", right = 20, bottom = "auto", 
+                width = "330", height = "auto",
+                style="padding: 20px;",
+    helpText(h4("Crafty Crawl")),
     selectInput("venueInput", "Enter a starting point",
                 CraftBeer$Venue,
                 selected = "Boatrocker Brewers & Distillers"),
@@ -90,41 +98,24 @@ server <- function(input, output, session){
     Locations_tour <- Locations[match(tour_order, Locations$id),]
     
     ## Cast for Mapping
-    Locations_tour$lat <- as.double(Locations_tour$lat)
-    Locations_tour$lon <- as.double(Locations_tour$lon)
+    Locations_tour$lat <- as.numeric(Locations_tour$lat)
+    Locations_tour$lon <- as.numeric(Locations_tour$lon)
 
     Itinerary <- Locations_tour
     
     leaflet(Itinerary) %>%
       addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
                attribution = attribution1) %>%
+      #setView(max(Itinerary$lon), min(Itinerary$lat),, zoom = 12) %>% 
+      #fitBounds(min(Itinerary$lon), min(Itinerary$lat), max(Itinerary$lon), max(Itinerary$lat)) %>% 
       addMarkers(~as.numeric(lon), ~as.numeric(lat),
                  icon = IconCraft,
                  #popup = ~as.character(V1),#add in address or votes or link to untappd?
                  label = ~as.character(V1)) %>% 
     addPolylines(lng = ~as.numeric(lon), lat = ~as.numeric(lat))
   })
+  
 
-  output$itinerary <- renderTable({
-    ShowItinerary <- closestCraftBeerDT %>% 
-      filter(Origin == input$venueInput) %>% 
-      select(1:input$stops)
-    ShowItinerary
-  })
-  
-  output$chk <- renderTable({
-    ShowItinerary <- closestCraftBeerDT %>% 
-      filter(Origin == input$venueInput) %>% 
-      select(1:input$stops)
-    Locations <- as.data.frame(t(ShowItinerary))
-    Locations <- Locations %>%
-      inner_join(CraftBeer, by = c( "V1" = "Venue" )) %>%
-      select("V1", "lat", "lon") %>% 
-      mutate(id = seq.int(nrow(Locations)))
-    Locations
-    
-  })
-  
   output$itineraryT <- renderTable({
     ShowItineraryT <- closestCraftBeerDT %>% 
       filter(Origin == input$venueInput) %>% 
