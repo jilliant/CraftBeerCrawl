@@ -39,18 +39,19 @@ ui <- fluidPage(
   titlePanel("Crafty Crawl"),
   
   mainPanel(
-    leafletOutput("map"),
-    br(), br(),
+    leafletOutput("map")),
+    #br(), br(),
     #tableOutput("chk"),
-    tableOutput("itinerary")),
+    #tableOutput("itinerary")),
   
   sidebarPanel(
     selectInput("venueInput", "Enter a starting point",
                 CraftBeer$Venue,
                 selected = "Boatrocker Brewers & Distillers"),
-    radioButtons("stops", h3("Number of Venues"),
+    radioButtons("stops", "Number of Venues",
                  choices = list("4 Venues" = 4, "5 Venues" = 5,
-                                "6 Venues" = 6),selected = 5)
+                                "6 Venues" = 6),selected = 5),
+    tableOutput("itineraryT")
   ))
 
 server <- function(input, output, session){
@@ -122,6 +123,15 @@ server <- function(input, output, session){
       mutate(id = seq.int(nrow(Locations)))
     Locations
     
+  })
+  
+  output$itineraryT <- renderTable({
+    ShowItineraryT <- closestCraftBeerDT %>% 
+      filter(Origin == input$venueInput) %>% 
+      select(1:input$stops)
+    ShowItineraryT <- as.data.frame(t(ShowItineraryT))
+    colnames(ShowItineraryT) <- "Itinerary"
+    ShowItineraryT
   })
 }
 
