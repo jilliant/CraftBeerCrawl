@@ -34,25 +34,17 @@ closestCraftBeerDT
 # TODO Save as rdata and load
 
 # UI ---- 
-#ui <- fluidPage(
-# titlePanel("Crafty Crawl"),
-# 
-# mainPanel(
-#   tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
-#   leafletOutput("map")),
-# sidebarPanel( 
-#   tags$style(".well {background-color:#e6e6e6;}"),
-#   tags$style(type = "text/css", "{height: calc(100vh - 80px) !important;}"),
-#   #tags$style(".well {background-color:#FCDC32;}"), # yellow sidebar
+ui <- fluidPage(
+titlePanel("Crafty Crawl"),
 
-ui <- bootstrapPage(
-  tags$style(type = "text/css", "html, body {width:100%;height:100%}"),
-  leafletOutput("map", width = "100%", height = "100%"),
-  absolutePanel(id = "controls", class = "panel panel-default", fixed = TRUE,
-                draggable = TRUE, top = 20, left = "auto", right = 20, bottom = "auto", 
-                width = "330", height = "auto",
-                style="padding: 20px;",
-    helpText(h4("Crafty Crawl")),
+mainPanel(
+  tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
+  leafletOutput("map")),
+sidebarPanel(
+  tags$style(".well {background-color:#e6e6e6;}"),
+  tags$style(type = "text/css", "{height: calc(100vh - 80px) !important;}"),
+  #tags$style(".well {background-color:#FCDC32;}"), # yellow sidebar
+
     selectInput("venueInput", "Enter a starting point",
                 CraftBeer$Venue,
                 selected = "Boatrocker Brewers & Distillers"),
