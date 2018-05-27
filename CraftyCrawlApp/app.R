@@ -38,23 +38,23 @@ closestCraftBeerDT
 
 # UI ---- 
 ui <- fluidPage(
-titlePanel("Crafty Crawl"),
+
+  titlePanel("Crafty Crawl"),
 
 mainPanel(
   tags$style(type = "text/css", "#map {height: calc(100vh - 80px) !important;}"),
-  br(), br(),
-  tableOutput("chk"),
   leafletOutput("map")),
+
 sidebarPanel(
   tags$style(".well {background-color:#e6e6e6;}"),
   tags$style(type = "text/css", "{height: calc(100vh - 80px) !important;}"),
-  #tags$style(".well {background-color:#FCDC32;}"), # yellow sidebar
 
     selectInput("venueInput", "Enter a starting point",
                 CraftBeer$Venue,
                 selected = "Stomping Ground Brewing Co"),
     radioButtons("stops", "Number of Venues",
-                 choices = list(4,5,6), selected = 5),
+                 choices = list("4 Venues" = 4, "5 Venues" = 5,
+                                "6 Venues" = 6), selected = 5),
     tableOutput("itineraryT")
   ))
 
@@ -62,20 +62,15 @@ server <- function(input, output, session){
 
   output$map <- renderLeaflet({
 
-    
+    # Get the data looking nice
       Itinerary <- closestCraftBeerDT %>% 
         filter(Origin == input$venueInput) 
+      
       Itinerary <- Itinerary[, 1:input$stops]
       Itinerary <- as.data.frame(t(Itinerary))
       colnames(Itinerary) <- "Venue"
       Itinerary$Venue <- as.character(Itinerary$Venue)
-      
-      # Itinerary <- closestCraftBeerDT %>% 
-      #   filter(Origin == "Stomping Ground Brewing Co") 
-      # Itinerary <- Itinerary[, 1:5]
-      # Itinerary <- as.data.frame(t(Itinerary))
-      # colnames(Itinerary) <- "Itinerary"
-        
+
       Locations <- Itinerary %>%
         inner_join(CraftBeer, by = c( "Venue" = "Venue" )) %>% 
         mutate(id = seq.int(nrow(Itinerary)))
@@ -111,8 +106,6 @@ server <- function(input, output, session){
     leaflet(Itinerary) %>%
       addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
                attribution = attribution1) %>%
-      #setView(max(Itinerary$lon), min(Itinerary$lat),, zoom = 12) %>% 
-      #fitBounds(min(Itinerary$lon), min(Itinerary$lat), max(Itinerary$lon), max(Itinerary$lat)) %>% 
       addMarkers(~as.numeric(lon), ~as.numeric(lat),
                  icon = IconCraft,
                  #popup = ~as.character(V1),#add in address or votes or link to untappd?
@@ -129,18 +122,7 @@ server <- function(input, output, session){
     colnames(ShowItineraryT) <- "Itinerary"
     ShowItineraryT
   })
-  
-  # output$chk <- renderTable({
-  #   ShowItinerary <- closestCraftBeerDT %>% 
-  #     filter(Origin == input$venueInput)# %>% 
-  #     #select(1:input$stops)
-  #   Locations <- as.data.frame(t(ShowItinerary))
-  #   Locations <- Locations %>%
-  #     inner_join(CraftBeer, by = c( "V1" = "Venue" )) %>%
-  #     select("V1", "lat", "lon") %>% 
-  #     mutate(id = seq.int(nrow(Locations)))
-  #   Locations
-# })
+
 }
 
 shinyApp(ui, server)
