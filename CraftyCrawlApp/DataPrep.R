@@ -24,7 +24,7 @@ closestCraftBeerChk
 
 # Take one
 Sample <- closestCraftBeerChk %>% 
-  slice(1) 
+  slice(11) 
 
 # pivot and bring back the coordinates
 Sample <- as.data.frame(t(Sample))
@@ -34,6 +34,7 @@ Sample <- Sample %>%
   inner_join(CraftBeer, by = c( "V1" = "Venue" )) %>% 
   select("id","V1", "lat", "lon")
 
+# TODO could add in the addresses too so that a table with the itinerary shows
 
 # turn the co-ords into a matrix 
 coords.df <- data.frame(long=Sample$lon, lat=Sample$lat)
@@ -41,22 +42,12 @@ coords.mx <- as.matrix(coords.df)
 
 # Compute great-circle distance matrix
 dist.mx <- spDists(coords.mx, longlat=TRUE)
-dist.mx
 
 # TSP object
 tsp.ins <- tsp_instance(coords.mx, dist.mx )
-tsp.ins
 
 # Solve 
-tour <- run_solver(tsp.ins, method="2-opt")
-tour
-
-# Compare Solvers
-tours = sapply(c("nn", "cheapest_insertion", "arbitrary_insertion", "2-opt"), function(solver) {
-  list(solver = run_solver(tsp.ins, method = solver))
-})
-tours
-# 2-opt is pretty good!
+tour <- run_solver(tsp.ins, method="nn", start = 1)
 
 # Permutation Vector 
 tour_order <- as.integer(tour)
@@ -66,8 +57,6 @@ autoplot(tsp.ins, tour)
 
 # reorder
 Sample_tour <- Sample[match(tour_order, Sample$id),]
-Sample_tour
-
 
 # On a Map
 Sample_tour$lat <- as.double(Sample_tour$lat)
@@ -84,7 +73,7 @@ IconBar <- makeIcon(iconUrl = "Icons/beer-2.png",
 
 
 map <- leaflet()%>%
-  setView(145.000017, -37.815943, 10) %>% 
+  setView(133.8807, -27.6980,4) %>% 
   addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
            attribution = attribution1
   ) %>%

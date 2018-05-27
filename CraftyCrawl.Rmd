@@ -470,7 +470,7 @@ distance.mx <- as.matrix(distance.mx)
 isSymmetric.matrix(distance.mx)
 
 # NEED TO SET START POINT
-
+# See DataPrep.R in app folder - need to use NN methods 
 # setup tsp
 tsp.ins.dist <- tsp_instance(coords.mx, distance.mx )
 tsp.ins.dist
