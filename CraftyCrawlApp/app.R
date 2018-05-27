@@ -173,17 +173,11 @@ server <- function(input, output, session){
                  label = ~as.character(Venue))
   })
 
-  # output$results <- renderTable({
-  #   filtered <- CraftBeer %>%
-  #     filter(Venue == input$venueInput) %>%
-  #     select("Venue", "Type", "Percent Vote", "Total votes", "Address")
-  #   filtered
-  # })
-
   output$itinerary <- renderTable({
-    StartTour <- closestCraftBeerDT %>% 
-      filter(Origin == input$venueInput)
-    StartTour
+    ShowItinerary <- closestCraftBeerDT %>% 
+      filter(Origin == input$venueInput) %>% 
+      select(1:input$stops)
+    ShowItinerary
   })
   
 }
