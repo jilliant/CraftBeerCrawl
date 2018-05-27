@@ -6,35 +6,16 @@ library(sp)
 library(tspmeta)
 library(RANN)
 
-setwd("~/Desktop/SomethingWithNumbers/CraftBeerCrawl")
-load("Data/CraftBeer.rdata")
+setwd("~/Desktop/SomethingWithNumbers/CraftBeerCrawl/CraftyCrawlApp")
+load("ShinyData/CraftBeer.rdata")
+load("ShinyData/closestCraftBeer.rdata")
+load("ShinyData/closestCraftBeerDT.rdata")
 
 # Map things
 attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
 
 IconCraft <- makeIcon(iconUrl = "Icons/beer-1.png",
                       iconAnchorX = 18, iconAnchorY = 12)
-IconBrew <- makeIcon(iconUrl = "Icons/barrel-3.png",
-                     iconAnchorX = 18, iconAnchorY = 12)
-IconBar <- makeIcon(iconUrl = "Icons/beer-2.png",
-                    iconAnchorX = 18, iconAnchorY = 12)
-
-CraftBeer  <- CraftBeer %>% 
-  mutate(ID = as.integer(rownames(CraftBeer)))
-
-# Find nearest neighbours
-CraftBeerNN <- data.frame(cbind(CraftBeer$lat, CraftBeer$lon))
-closestCraftBeer <- nn2(data = CraftBeerNN, k=6)[[1]]
-closestCraftBeer <- data.frame(closestCraftBeer)
-
-# Convert index to names
-closestCraftBeerDT <- closestCraftBeer %>%
-  mutate_all(funs(CraftBeer$Venue[match(., CraftBeer$ID)])) %>%
-  rename(Origin = X1, "Stop 2" = X2, "Stop 3" = X3, "Stop 4" = X4, "Stop 5" = X5, "Stop 6" = X6) %>% 
-  arrange(Origin)
-closestCraftBeerDT
-
-# TODO Save as rdata and load
 
 # UI ---- 
 ui <- fluidPage(
@@ -110,9 +91,9 @@ server <- function(input, output, session){
                  icon = IconCraft,
                  #popup = ~as.character(V1),#add in address or votes or link to untappd?
                  label = ~as.character(Venue)) %>% 
-    addPolylines(lng = ~as.numeric(lon), lat = ~as.numeric(lat))
+    addPolylines(lng = ~as.numeric(lon), lat = ~as.numeric(lat), 
+                 color = "#3252fc", opacity = 0.9)
   })
-  
 
   output$itineraryT <- renderTable({
     ShowItineraryT <- closestCraftBeerDT %>% 

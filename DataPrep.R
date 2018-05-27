@@ -12,7 +12,7 @@ CraftBeer  <- CraftBeer %>%
 
 # Find nearest neighbours
 CraftBeerNN <- data.frame(cbind(CraftBeer$lat, CraftBeer$lon))
-closestCraftBeer <- nn2(data = CraftBeerNN, k=5)[[1]]
+closestCraftBeer <- nn2(data = CraftBeerNN, k=6)[[1]]
 
 closestCraftBeer <- data.frame(closestCraftBeer)
 
@@ -22,9 +22,12 @@ closestCraftBeerChk <- closestCraftBeer %>%
   rename(Orgin = X1, First = X2, Second = X3, Third = X4, Fourth = X5, Fifth = X6)
 closestCraftBeerChk
 
+
+
 # Take one
 Sample <- closestCraftBeerChk %>% 
-  slice(11) 
+  slice(11) %>% 
+  
 
 # pivot and bring back the coordinates
 Sample <- as.data.frame(t(Sample))
