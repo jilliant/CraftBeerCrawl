@@ -148,10 +148,11 @@ ui <- fluidPage(
   sidebarPanel(
     ### User chooses the tour to map
     selectInput("venueInput", "Enter a starting point",
-                CraftBeer$Venue),
+                CraftBeer$Venue,
+                selected = "Boatrocker Brewers & Distillers"),
     selectInput("stops", "Number of Stops",
-                c(2,3,4,5,6)
-    )
+                c(2,3,4,5,6),
+                selected = "5")
   ))
 
 server <- function(input, output, session){
