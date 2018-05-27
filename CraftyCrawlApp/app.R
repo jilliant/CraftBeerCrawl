@@ -61,17 +61,63 @@ ui <- bootstrapPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   
+  filteredData <- reactive({
+  # Take one
+  Sample <- closestCraftBeerDT %>%
+    filter(Origin == input$Origin)
+  # Sample <- closestCraftBeerDT %>% 
+  #   filter(Origin == "10 Toes Brewery")
+  
+  # pivot and bring back the coordinates
+  Sample <- as.data.frame(t(Sample))
+  Sample$id <- seq.int(nrow(Sample))
+  
+  Sample <- Sample %>% 
+    inner_join(CraftBeer, by = c( "V1" = "Venue" )) %>% 
+    select("id","V1", "lat", "lon")
+  
+  Sample_tour <- Sample
+  
+  # # turn the co-ords into a matrix 
+  # coords.df <- data.frame(long=Sample$lon, lat=Sample$lat)
+  # coords.mx <- as.matrix(coords.df)
+  # 
+  # # Compute great-circle distance matrix
+  # dist.mx <- spDists(coords.mx, longlat=TRUE)
+  # 
+  # # TSP object
+  # tsp.ins <- tsp_instance(coords.mx, dist.mx )
+  # 
+  # # Solve 
+  # tour <- run_solver(tsp.ins, method="nn", start = 1)
+  # 
+  # # Permutation Vector 
+  # tour_order <- as.integer(tour)
+  # 
+  # # Plot
+  # autoplot(tsp.ins, tour)
+  # 
+  # # reorder
+  # Sample_tour <- Sample[match(tour_order, Sample$id),]
+  # 
+  # On a Map
+  Sample_tour$lat <- as.double(Sample_tour$lat)
+  Sample_tour$lon <- as.double(Sample_tour$lon)
+  })
   
   
   
   
-   
   output$map <- renderLeaflet({
     leaflet()%>%
       setView(133.8807, -27.6980,4) %>% 
       addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
                attribution = attribution1
-      ) %>%
+      )
+  })
+  
+  observe({
+    leafletProxy("map", data = filteredData()) %>%  
       addMarkers(lng = Sample_tour$lon, lat = Sample_tour$lat,
                  icon = IconCraft,
                  popup = paste(Sample_tour$V1),
@@ -89,4 +135,45 @@ server <- function(input, output) {
 
 # Run the application 
 shinyApp(ui = ui, server = server)
+
+
+# A Basic App
+ui <- fluidPage(
+  titlePanel("Crafty Crawl"),
+  mainPanel(
+    leafletOutput("map"),
+    br(), br(),
+    tableOutput("results")),
+  sidebarPanel(
+    ### User chooses the tour to map
+    selectInput("venueInput", "Starting Point",
+                CraftBeer$Venue)
+  ))
+
+server <- function(input, output, session){
+  
+  output$map <- renderLeaflet({
+    
+    filtered <- CraftBeer %>%
+      filter(Venue == input$venueInput)
+    
+    leaflet(filtered) %>%
+      addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png', 
+               attribution = attribution1) %>%
+      addMarkers(~as.numeric(lon), ~as.numeric(lat),
+                 icon = IconCraft,
+                 popup = ~as.character(Venue), 
+                 label = ~as.character(Venue))
+  })
+  
+  output$results <- renderTable({
+    filtered <- CraftBeer %>%
+      filter(Venue == input$venueInput) %>% 
+      select("Venue", "Type", "Percent Vote", "Total votes", "Address")
+    filtered
+  })
+  
+}
+
+shinyApp(ui, server)
 
