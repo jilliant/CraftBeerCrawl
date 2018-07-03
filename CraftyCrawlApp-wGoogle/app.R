@@ -34,9 +34,9 @@ ui <- fluidPage(
     selectInput("startPoint", "Enter a starting point",
                 CraftBeer$Venue,
                 selected = "Stomping Ground Brewing Co"),
-    uiOutput("endPoint"),
-    numericInput("waypointsN", "Number of Venues", value = 5, min = 4, max = 12),
-    #tableOutput("itineraryT"),
+    #uiOutput("endPoint"),
+    numericInput("waypointsN", "Number of Venues", value = 5, min = 2, max = 12),
+    tableOutput("itineraryTable"),
     tags$br(),
     actionButton(inputId = "getRoute", label = "Get Route"),
     tags$br(),
@@ -47,19 +47,6 @@ ui <- fluidPage(
     ))
 
 server <- function(input, output, session){
-  
-  # Allow user to select an endpoint from the 12 nearest neighbours
-  output$endPoint <- renderUI({
-    
-    endOptions <- closestCraftBeerDT %>% 
-      filter(Origin == input$startPoint) 
-    
-    endOptions <- as.character(as.vector(endOptions[1,]))
-    
-    endOptions <- endOptions[-1] # remove start point
-  
-    selectInput("endPoints", "Choose an end point", endOptions)
-  })
   
   # Map
   
@@ -75,49 +62,45 @@ server <- function(input, output, session){
     
     # Get the data looking nice
     Itinerary <- closestCraftBeerDT %>% 
-      filter(Origin == input$startPoint) 
-      # filter(Origin == "Stomping Ground Brewing Co")
-    Itinerary <- Itinerary[, 1:input$waypointsN]
-    #Itinerary <- Itinerary[, 1:6]
-    Itinerary <- Itinerary[,-ncol(Itinerary)] # remove last stop
-    last_stop <- c(input$endPoint)
-    #last_stop <- c("Pirate Life")
-    Itinerary <- append(Itinerary, last_stop) # add destination row
+      # filter(Origin == input$startPoint) 
+       filter(Origin == "Stomping Ground Brewing Co")
+    #Itinerary <- Itinerary[, 1:input$waypointsN]
+    Itinerary <- Itinerary[, 1:6]
+    
     Itinerary <- as.vector(paste(Itinerary)) # mash it back into shape
     Itinerary <- data.frame(Itinerary)
-    colnames(Itinerary) <- "Venue" # to lazy join them
-    Itinerary$Venue <- as.character(Itinerary$Venue) # always factors so change back to char
+    colnames(Itinerary) <- "Venue" 
+    Itinerary$Venue <- as.character(Itinerary$Venue) 
     
     Locations <- Itinerary %>%
       inner_join(CraftBeer, by = c( "Venue" = "Venue" )) %>% 
-      mutate(id = seq.int(nrow(Itinerary)))
+      mutate(id = seq.int(nrow(Itinerary))) %>% 
+      mutate(latlon = paste0(lat,",",lon))
     Locations
     
+    # Origin
+    o <- Locations[1,12] # first row last col
 
-    origin <- Locations[1,]
-    o <- paste0(origin$lat,",",origin$lon)
-
-    # w <- input$waypoint
-    # q <- input$waypoint2
-
-    destination <- Locations[nrow(Locations),]
-    d <- paste0(destination$lat,",",destination$lon)
-    
-    # o1 <- CraftBeer %>% 
-    #   filter(Venue == input$startPoint)
-    # o <- paste0(o1$lat,",",o1$lon)
-    # 
-    # d1 <- CraftBeer %>% 
-    #   filter(Venue == input$endPoint)
-    # d <- paste0(d1$lat,",",d1$lon)
-
+     # w <- Locations[3,12]
+     # 
+     # q <- Locations[4,12]
+     
+    # Waypoints
+      stops_list <- as.list(Locations[,12])
+      n <-rep("stop",6) 
+      names(stops_list) <- paste(n)
+      stops_list <- head(stops_list, -1) # remove last one
+      
+    # Destination  
+    d <- Locations[nrow(Locations),12] # last row last col
 
     res <- google_directions(key = DirectionsKey,
                              origin = o,
+                             waypoints = stops_list,
                              # waypoints = list(stop = w,
                              #                  stop = q),
                              destination = d,
-                            # optimise_waypoints = TRUE,
+                             optimise_waypoints = TRUE,
                              mode = "driving")
 
     df_route <- data.frame(route = res$routes$overview_polyline$points)
@@ -130,19 +113,19 @@ server <- function(input, output, session){
     df_way$order <- as.character(1:nrow(df_way))
     
     # Test map
-    # g <- google_map(key = MapKey,
-    #                 search_box = TRUE,
-    #                 scale_control = TRUE) %>%
-    #   add_polylines(data = df_route,
-    #                 polyline = "route",
-    #                 stroke_colour = "#FF33D6",
-    #                 stroke_weight = 7,
-    #                 stroke_opacity = 0.7,
-    #                 info_window = "New route",
-    #                 load_interval = 100) %>%
-    #   add_markers(data = df_way,
-    #               info_window = "end_address",
-    #               label = "order")
+    g <- google_map(key = MapKey,
+                    search_box = TRUE,
+                    scale_control = TRUE) %>%
+      add_polylines(data = df_route,
+                    polyline = "route",
+                    stroke_colour = "#FF33D6",
+                    stroke_weight = 7,
+                    stroke_opacity = 0.7,
+                    info_window = "New route",
+                    load_interval = 100) %>%
+      add_markers(data = df_way,
+                  info_window = "end_address",
+                  label = "order")
 
     google_map_update(map_id = "map") %>%
       clear_traffic() %>%
