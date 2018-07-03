@@ -4,9 +4,7 @@ library(leaflet)
 library(dplyr)
 library(sp)
 library(tspmeta)
-library(RANN)
 
-setwd("~/Desktop/SomethingWithNumbers/CraftBeerCrawl/CraftyCrawlApp")
 load("ShinyData/CraftBeer.rdata")
 load("ShinyData/closestCraftBeer.rdata")
 load("ShinyData/closestCraftBeerDT.rdata")
@@ -36,7 +34,10 @@ sidebarPanel(
     radioButtons("stops", "Number of Venues",
                  choices = list("4 Venues" = 4, "5 Venues" = 5,
                                 "6 Venues" = 6), selected = 5),
-    tableOutput("itineraryT")
+    tableOutput("itineraryT"),
+    helpText("An optimal Craft Beer Crawl, using the results from 
+              Beer Cartel's Australian Craft Beer Survey 2017 (where the
+              Brewery or Bar achieved at least 1% of the vote for it's state).")
   ))
 
 server <- function(input, output, session){
