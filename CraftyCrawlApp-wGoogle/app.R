@@ -1,8 +1,6 @@
 # Global ----
 library(shiny)
 library(dplyr)
-library(sp)
-library(tspmeta)
 library(googleway)
 
 load("ShinyData/CraftBeer.rdata")
@@ -81,18 +79,18 @@ server <- function(input, output, session){
     Locations
     
     # Origin
-    o <- Locations[1,12] # first row last col
+    o <- Locations[1,9] # first row last col
 
     # Waypoints
     # w <- Locations[3,12]
     # q <- Locations[4,12]
-    stops_list <- as.list(Locations[,12])
+    stops_list <- as.list(Locations$Address)
     n <-rep("stop",length(stops_list)) 
     names(stops_list) <- paste(n)
     stops_list <- head(stops_list, -1) # remove last one
       
     # Destination  
-    d <- Locations[nrow(Locations),12] # last row last col
+    d <- Locations[nrow(Locations),9] # last row last col
 
     res <- google_directions(key = DirectionsKey,
                              origin = o,
@@ -112,21 +110,10 @@ server <- function(input, output, session){
 
     df_way$order <- as.character(1:nrow(df_way))
     
+    Locations <- Locations %>% select(Venue, Type, Address)
     
-    # # Test map
-    # g <- google_map(key = MapKey,
-    #                 search_box = TRUE,
-    #                 scale_control = TRUE) %>%
-    #   add_polylines(data = df_route,
-    #                 polyline = "route",
-    #                 stroke_colour = "#FF33D6",
-    #                 stroke_weight = 7,
-    #                 stroke_opacity = 0.7,
-    #                 info_window = "New route",
-    #                 load_interval = 100) %>%
-    #   add_markers(data = df_way,
-    #               info_window = "end_address",
-    #               label = "order")
+    df_way <- df_way %>%
+       inner_join(Locations, by = c("address" = "Address"))
 
     google_map_update(map_id = "map") %>%
       clear_traffic() %>%
@@ -137,79 +124,13 @@ server <- function(input, output, session){
                     stroke_colour = "#3252fc",
                     stroke_weight = 7,
                     stroke_opacity = 0.7,
-                    info_window = "New route",
+                    #info_window = "New route",
                     load_interval = 100) %>%
       add_markers(data = df_way,
-                  info_window = "end_address",
-                  label = "order"
-                  )
+                  #info_window = df_way$Venue,
+                  label = "order")
   })
 
-
-
-  # output$map <- renderLeaflet({
-  #   
-  #   # Get the data looking nice
-  #   Itinerary <- closestCraftBeerDT %>% 
-  #     filter(Origin == input$venueInput) 
-  #   
-  #   Itinerary <- Itinerary[, 1:input$stops]
-  #   Itinerary <- as.data.frame(t(Itinerary))
-  #   colnames(Itinerary) <- "Venue"
-  #   Itinerary$Venue <- as.character(Itinerary$Venue)
-  #   
-  #   Locations <- Itinerary %>%
-  #     inner_join(CraftBeer, by = c( "Venue" = "Venue" )) %>% 
-  #     mutate(id = seq.int(nrow(Itinerary)))
-  #   Locations
-  #   
-  #   # TSP 
-  #   
-  #   ## turn the co-ords into a matrix
-  #   coords.df <- data.frame(long=Locations$lon, lat=Locations$lat)
-  #   coords.mx <- as.matrix(coords.df)
-  #   
-  #   ## Compute great-circle distance matrix
-  #   dist.mx <- spDists(coords.mx, longlat=TRUE)
-  #   
-  #   ## Create TSP object
-  #   tsp.ins <- tsp_instance(coords.mx, dist.mx )
-  #   
-  #   ## Solve
-  #   tour <- run_solver(tsp.ins, method="nn", start = 1)
-  #   
-  #   ## Get Permutation Vector
-  #   tour_order <- as.integer(tour)
-  #   
-  #   ## reorder data frame
-  #   Locations_tour <- Locations[match(tour_order, Locations$id),]
-  #   
-  #   ## Cast for Mapping
-  #   Locations_tour$lat <- as.numeric(Locations_tour$lat)
-  #   Locations_tour$lon <- as.numeric(Locations_tour$lon)
-  #   
-  #   Itinerary <- Locations_tour
-  #   
-  #   leaflet(Itinerary) %>%
-  #     addTiles(urlTemplate = 'http://{s}.tile.stamen.com/toner-lite/{z}/{x}/{y}.png',
-  #              attribution = attribution1) %>%
-  #     addMarkers(~as.numeric(lon), ~as.numeric(lat),
-  #                icon = IconCraft,
-  #                #popup = ~as.character(V1),#add in address or votes or link to untappd?
-  #                label = ~as.character(Venue)) %>% 
-  #     addPolylines(lng = ~as.numeric(lon), lat = ~as.numeric(lat), 
-  #                  color = "#3252fc", opacity = 0.9)
-  # })
-  # 
-  # output$itineraryT <- renderTable({
-  #   ShowItineraryT <- closestCraftBeerDT %>% 
-  #     filter(Origin == input$venueInput) 
-  #   ShowItineraryT <- ShowItineraryT[, 1:input$stops]
-  #   ShowItineraryT <- as.data.frame(t(ShowItineraryT))
-  #   colnames(ShowItineraryT) <- "Itinerary"
-  #   ShowItineraryT
-  # })
-  
 }
 
 shinyApp(ui, server)
