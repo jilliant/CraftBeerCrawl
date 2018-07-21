@@ -7,7 +7,7 @@ library(tspmeta)
 
 load("ShinyData/CraftBeer.rdata")
 load("ShinyData/closestCraftBeer.rdata")
-load("ShinyData/closestCraftBeerDT.rdata")
+load("ShinyData/closestCraftBeerDT12.rdata")
 
 # Map things
 attribution1 <- 'Map tiles by <a href="http://stamen.com">Stamen Design</a>, <a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a> &mdash; Map data &copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> | Icons made by <a href="http://www.flaticon.com/authors/nas-ztudio" title="Nas Ztudio">Nas Ztudio</a> from <a href="http://www.flaticon.com" title="Flaticon">www.flaticon.com</a> licensed by <a href="http://creativecommons.org/licenses/by/3.0/" title="Creative Commons BY 3.0" target="_blank">CC BY 3.0 </a>'  
@@ -17,7 +17,7 @@ IconCraft <- makeIcon(iconUrl = "Icons/beer-1.png",
 
 # UI ---- 
 ui <- fluidPage(
-
+  tags$head(includeHTML(("google-analytics.html"))),
   titlePanel("Crafty Crawl"),
 
 mainPanel(
@@ -31,13 +31,18 @@ sidebarPanel(
     selectInput("venueInput", "Enter a starting point",
                 CraftBeer$Venue,
                 selected = "Stomping Ground Brewing Co"),
-    radioButtons("stops", "Number of Venues",
-                 choices = list("4 Venues" = 4, "5 Venues" = 5,
-                                "6 Venues" = 6), selected = 5),
+    # radioButtons("stops", "Number of Venues",
+    #              choices = list("4 Venues" = 4, "5 Venues" = 5,
+    #                             "6 Venues" = 6), selected = 5),
+    numericInput("stops", "Number of Venues (choose between 4-12)", value = 5, min = 4, max = 12),
     tableOutput("itineraryT"),
     helpText("An optimal Craft Beer Crawl, using the results from 
               Beer Cartel's Australian Craft Beer Survey 2017 (where the
-              Brewery or Bar achieved at least 1% of the vote for it's state).")
+              Brewery or Bar achieved at least 1% of the vote for it's state)."),
+    br(),
+    a(actionButton(inputId = "email1", label = "Contact", 
+                 icon = icon("envelope", lib = "font-awesome")),
+      href="mailto:thingswithnumbers@gmail.com")
   ))
 
 server <- function(input, output, session){
